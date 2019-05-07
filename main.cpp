@@ -1,11 +1,13 @@
-#include "vec3.hpp"
-#include "ray.hpp"
+#include <iostream> 
+#include "sphere.hpp"
+#include "hitable_list.hpp" 
+#include "float.h"
 
 
 
 void drawCanvas(); 
-vec3 color(const ray& r);
-float hit_sphere(const vec3& center, float radius, const ray& r);
+vec3 color(const ray& r, hitable *world);
+
 
 
 const int numR = 100; 
@@ -36,6 +38,12 @@ void drawCanvas()
    vec3 vertical(0.0, (float)numR/50.0, 0.0);   // Spans the full vertical length of the view plane
    vec3 origin(0.0, 0.0, 0.0);
 
+    hitable *list[2]; // List of pointers to hitable base classes 
+    list[0] = new sphere(vec3(0,0,-1), 0.5);
+    list[1] = new sphere(vec3(0,-100.5,-1),100);
+    hitable *world = new hitable_list(list, 2);
+
+
    // Traverse the view plane
    for(int j = numY - 1; j >= 0; --j) // Start at top row
    {
@@ -45,7 +53,7 @@ void drawCanvas()
            float v = float(j) / float(numY); // V comp in view plane
 
            ray r(origin, low_left + u*horizontal + v*vertical); // Generate a ray from origin to view plane
-           vec3 col = 255.99*color(r); 
+           vec3 col = 255.99*color(r, world); 
            col[0] = (int)col[0];        // Cast the components for the PPM format
            col[1] = (int)col[1]; 
            col[2] = (int)col[2]; 
@@ -57,33 +65,21 @@ void drawCanvas()
 }
 
 
-vec3 color(const ray& r)
+vec3 color(const ray& r, hitable *world)
 {
-    // The sphere center and radius here are hardcoded 
-    float t = hit_sphere(vec3(0, 0, -1.0), 0.5, r);
-    if(t > 0.0)
+    hit_record rec; 
+    if (world->hit(r, 0.0, MAXFLOAT, rec))
     {
-        vec3 N = unit_vector(r.point_at_param(t) - vec3(0, 0, -1));
-        return 0.5*vec3(N.x()+1, N.y()+1, N.z()+1); // Map the color of the normal vector
-        // The non-obvious math is just to force [-1, 1] to [0, 1]
+        return 0.5*vec3(rec.normal.x()+1, rec.normal.y()+1, rec.normal.z()+1);
+        // Non-obvious math is to map [-1, 1] normal components 
+        // to [0, 1] color components 
     }
 
-    vec3 unit_direction = unit_vector(r.direction());
-    t = 0.5*(unit_direction.y() + 1.0);
-    return (1.0 - t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
-}
-
-float hit_sphere(const vec3& center, float radius, const ray& r)
-{   
-    // Find the derivation/proof of this intersection method in my Raytracing Math notes!
-    
-    vec3 oc = r.origin() - center; 
-    float a = dot(r.direction(), r.direction()); 
-    float b = 2.0 * dot(oc, r.direction()); 
-    float c = dot(oc, oc) - radius*radius;
-    float discriminant = b*b - 4*a*c; 
-    if (discriminant < 0) 
-    { return -1.0; }
-    else
-    { return (-b - sqrt(discriminant) ) / (2.0*a); }
+    else { // No hit 
+        vec3 unit_direction = unit_vector(r.direction());
+        float t = 0.5*(unit_direction.y() + 1.0); 
+        // Creates the blue sky looking gradient
+        return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+        // Common interpolation trick (see math notes)
+    }
 }
