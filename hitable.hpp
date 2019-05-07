@@ -4,6 +4,7 @@
 #include "ray.hpp"
 
 
+// This will allow ray-collision functions to "return" information about the hit
 struct hit_record {
     float t; 
     vec3 p; 
