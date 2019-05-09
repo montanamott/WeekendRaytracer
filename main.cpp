@@ -1,4 +1,5 @@
 #include <iostream> 
+#include "camera.hpp"
 #include "sphere.hpp"
 #include "hitable_list.hpp" 
 #include "float.h"
@@ -7,6 +8,7 @@
 
 void drawCanvas(); 
 vec3 color(const ray& r, hitable *world);
+vec3 random_in_unit_sphere(); 
 
 
 
@@ -30,35 +32,35 @@ void drawCanvas()
     // For consistency with the tutorial 
     int numX = numC; 
     int numY = numR; 
-
-   // These will be used to traverse the image/view plane
-   //       low_left z value determines depth of view plane
-   vec3 low_left(-(float)numC/100.0, -(float)numR/100.0, -0.8);
-   vec3 horizontal((float)numC/50.0, 0.0, 0.0); // Spans the full horizontal length of the view plane
-   vec3 vertical(0.0, (float)numR/50.0, 0.0);   // Spans the full vertical length of the view plane
-   vec3 origin(0.0, 0.0, 0.0);
+    int ns = 100; // Number of samples!
 
     hitable *list[2]; // List of pointers to hitable base classes 
     list[0] = new sphere(vec3(0,0,-1), 0.5);
     list[1] = new sphere(vec3(0,-100.5,-1),100);
     hitable *world = new hitable_list(list, 2);
 
-
+    camera cam;
    // Traverse the view plane
    for(int j = numY - 1; j >= 0; --j) // Start at top row
    {
        for(int i = 0; i < numX; ++i)    // Start at leftmost column
        {
-           float u = float(i) / float(numX); // U component in view plane
-           float v = float(j) / float(numY); // V comp in view plane
+           vec3 col(0, 0, 0); 
+           for(int s = 0; s < ns; ++s)
+           {
+               float u = float(i + drand48()) / float (numX);
+               float v = float(j + drand48()) / float (numY);
 
-           ray r(origin, low_left + u*horizontal + v*vertical); // Generate a ray from origin to view plane
-           vec3 col = 255.99*color(r, world); 
-           col[0] = (int)col[0];        // Cast the components for the PPM format
-           col[1] = (int)col[1]; 
-           col[2] = (int)col[2]; 
+               ray r = cam.get_ray(u, v);
+               col += color(r, world);
+           }
 
-           std::cout << col << "\n";
+           col = 255.99*(col / float(ns)); 
+           int ir = (int)col[0];
+           int ig = (int)col[1];
+           int ib = (int)col[2];
+
+           std::cout << ir << " " << ig << " " << ib << "\n";
        }
    }
 
@@ -70,7 +72,8 @@ vec3 color(const ray& r, hitable *world)
     hit_record rec; 
     if (world->hit(r, 0.0, MAXFLOAT, rec))
     {
-        return 0.5*vec3(rec.normal.x()+1, rec.normal.y()+1, rec.normal.z()+1);
+        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+        return 0.5*color( ray(rec.p, target-rec.p), world);
         // Non-obvious math is to map [-1, 1] normal components 
         // to [0, 1] color components 
     }
@@ -82,4 +85,15 @@ vec3 color(const ray& r, hitable *world)
         return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
         // Common interpolation trick (see math notes)
     }
+}
+
+vec3 random_in_unit_sphere()
+{
+    vec3 p; 
+    do {
+        p = 2.0*vec3(drand48(),drand48(),drand48()) - vec3(1,1,1);
+        // Going from [0, 1] to [-1, 1] possible components
+    }   while (p.squared_length() >= 1);
+
+    return p;
 }
