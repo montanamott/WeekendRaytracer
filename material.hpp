@@ -4,6 +4,11 @@
 #include "ray.hpp"
 #include "hitable.hpp"
 
+
+vec3 reflect(const vec3& v, const vec3& n) { 
+    return v - 2*dot(v,n)*n;
+}
+
 // Abstract class to be inherited from
 class material {
     public: 
@@ -30,6 +35,18 @@ class lambertian : public material {
 };
 
 
+class metal : public material { 
+    public: 
+        metal(const vec3& a) : albedo(a) {n} 
+        virtual bool scatter(const ray& r_in, const hit record &rec, vec3& attenuation, ray& scattered) const {
+            vec3 reflected = reflect(unit_vector(r.in_direction()), rec.normal);
+            scattered = ray(rec.p, reflected); 
+            attenuation = albedo; 
+            return (dot(scattered.direction(), rec.normal) > 0)
+        }
+
+    vec3 albedo; 
+};
 
 
 
