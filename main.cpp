@@ -7,7 +7,7 @@
 
 
 void drawCanvas(); 
-vec3 color(const ray& r, hitable *world);
+vec3 color(const ray& r, hitable *world, int depth);
 vec3 random_in_unit_sphere(); 
 
 
@@ -34,10 +34,11 @@ void drawCanvas()
     int numY = numR; 
     int ns = 100; // Number of samples!
 
-    hitable *list[2]; // List of pointers to hitable base classes 
-    list[0] = new sphere(vec3(0,0,-1), 0.5);
-    list[1] = new sphere(vec3(0,-100.5,-1),100);
-    hitable *world = new hitable_list(list, 2);
+    hitable *list[3]; // List of pointers to hitable base classes 
+    list[0] = new sphere(vec3(0,0,-1), 0.5, new lambertian(vec3(0.5, 0.5, 0.5)));
+    list[1] = new sphere(vec3(0,-100.5,-1),100, new metal(vec3(0.8, 0.8, 0.0)));
+    list[2] = new sphere(vec3(2, 0, -2), 0.5, new metal(vec3(0.8, 0.8, 0.8)));
+    hitable *world = new hitable_list(list, 3);
 
     camera cam;
    // Traverse the view plane
@@ -52,7 +53,7 @@ void drawCanvas()
                float v = float(j + drand48()) / float (numY);
 
                ray r = cam.get_ray(u, v);
-               col += color(r, world);
+               col += color(r, world, 0);
            }
 
            col = (col / float(ns)); 
@@ -69,15 +70,23 @@ void drawCanvas()
 }
 
 
-vec3 color(const ray& r, hitable *world)
+vec3 color(const ray& r, hitable *world, int depth)
 {
     hit_record rec; 
     if (world->hit(r, 0.001, MAXFLOAT, rec))
     {
-        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
-        return 0.5*color( ray(rec.p, target-rec.p), world);
-        // Non-obvious math is to map [-1, 1] normal components 
-        // to [0, 1] color components 
+        ray scattered; 
+        vec3 attenuation; 
+
+        if(depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered))
+        {
+            return attenuation*color(scattered, world, depth+1);
+        } 
+        else
+        {
+            return vec3(0, 0, 0);
+        }
+
     }
 
     else { // No hit 
